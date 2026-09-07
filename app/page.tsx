@@ -131,6 +131,14 @@ export default function HomePage() {
               <span>Abrir Pantalla de Cobros (Bar La Iglesia)</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
+
+            <Link
+              href="/planes"
+              className="w-full py-2.5 px-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-bold text-xs rounded-2xl flex items-center justify-center space-x-2 transition"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>Ver Planes & Precios (Plan Pro a 20€/mes con código)</span>
+            </Link>
           </div>
         )}
       </main>
@@ -138,6 +146,8 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="mt-8 text-center text-xs text-slate-500 space-y-2 z-10 pb-6">
         <div className="flex justify-center items-center space-x-4 text-[11px] text-slate-400">
+          <Link href="/planes" className="text-amber-400 font-bold hover:underline">⭐ Planes (Pro 20€)</Link>
+          <span>·</span>
           <Link href="/privacidad" className="hover:text-amber-400 transition">Privacidad (RGPD)</Link>
           <span>·</span>
           <Link href="/terminos" className="hover:text-amber-400 transition">Términos</Link>

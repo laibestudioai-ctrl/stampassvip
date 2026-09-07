@@ -107,35 +107,79 @@ export const db = {
   },
 
   getCardBySearch(query: string): Card | null {
-    const q = query.toLowerCase().trim();
+    let q = query.trim();
     if (!q) return null;
+
+    // Check if query is a JSON string from QR
+    if (q.startsWith("{") || q.includes('"id"') || q.includes('"nombre"') || q.includes('"email"')) {
+      try {
+        let cleanJson = q;
+        // Fix dropped quotes from keyboard layouts
+        cleanJson = cleanJson.replace(/([0-9]+)(sellos|id|nombre|email)":/g, '"$2":');
+        const parsed = JSON.parse(cleanJson);
+        return this.importCardFromQR(parsed);
+      } catch (e) {
+        // Fallback with regex
+        const idMatch = q.match(/"id"\s*:\s*"([^"]+)"/);
+        const nameMatch = q.match(/"nombre"\s*:\s*"([^"]+)"/);
+        const emailMatch = q.match(/"email"\s*:\s*"([^"]+)"/);
+        const sellosMatch = q.match(/"sellos"\s*:\s*([0-9]+)/);
+        if (idMatch || nameMatch || emailMatch) {
+          return this.importCardFromQR({
+            id: idMatch ? idMatch[1] : undefined,
+            nombre: nameMatch ? nameMatch[1] : undefined,
+            email: emailMatch ? emailMatch[1] : undefined,
+            sellos: sellosMatch ? parseInt(sellosMatch[1], 10) : 0
+          });
+        }
+      }
+    }
+
     const cards = this.getCards();
+    const qLower = q.toLowerCase();
     return cards.find(c =>
-      c.id.toLowerCase() === q ||
-      c.cliente.nombre.toLowerCase().includes(q) ||
+      c.id.toLowerCase() === qLower ||
+      c.cliente.nombre.toLowerCase().includes(qLower) ||
       (c.cliente.telefono && c.cliente.telefono.includes(q)) ||
-      (c.cliente.email && c.cliente.email.toLowerCase().includes(q))
+      (c.cliente.email && c.cliente.email.toLowerCase().includes(qLower))
     ) || null;
   },
 
-  addCustomer(nombre: string, emailOrPhone: string): Card {
+  importCardFromQR(data: { id?: string; nombre?: string; email?: string; telefono?: string; sellos?: number }): Card {
     const cards = this.getCards();
-    const isPhone = /^[0-9+ ]+$/.test(emailOrPhone.trim());
-    const id = "card-" + Date.now().toString().slice(-6);
+    const targetId = data.id || "card-" + Date.now().toString().slice(-6);
+
+    let existing = cards.find(c => 
+      c.id === targetId || 
+      (data.email && c.cliente.email && c.cliente.email.toLowerCase() === data.email.toLowerCase()) ||
+      (data.nombre && c.cliente.nombre.toLowerCase() === data.nombre.toLowerCase())
+    );
+
+    if (existing) {
+      if (data.nombre && (existing.cliente.nombre.startsWith("Cliente VIP") || !existing.cliente.nombre)) {
+        existing.cliente.nombre = data.nombre;
+      }
+      if (data.email && !existing.cliente.email) {
+        existing.cliente.email = data.email;
+      }
+      this.saveCards(cards);
+      return existing;
+    }
+
     const newCard: Card = {
-      id,
+      id: targetId,
       cliente_id: "cli-" + Date.now().toString().slice(-6),
       campana_id: "camp-1",
-      sellos_acumulados: 0,
-      sellos_totales_historicos: 0,
-      premio_pendiente: false,
+      sellos_acumulados: data.sellos || 0,
+      sellos_totales_historicos: data.sellos || 0,
+      premio_pendiente: (data.sellos || 0) >= 10,
       fecha_creacion: new Date().toISOString(),
       ultima_visita: new Date().toISOString(),
       cliente: {
         id: "cli-" + Date.now().toString().slice(-6),
-        nombre: nombre.trim(),
-        email: isPhone ? "" : emailOrPhone.trim(),
-        telefono: isPhone ? emailOrPhone.trim() : "",
+        nombre: data.nombre?.trim() || "Cliente VIP (" + targetId.slice(-4) + ")",
+        email: data.email?.trim() || "",
+        telefono: data.telefono?.trim() || "",
         fecha_registro: new Date().toISOString()
       },
       campana: {
@@ -149,6 +193,15 @@ export const db = {
     cards.unshift(newCard);
     this.saveCards(cards);
     return newCard;
+  },
+
+  addCustomer(nombre: string, emailOrPhone: string): Card {
+    const isPhone = /^[0-9+ ]+$/.test(emailOrPhone.trim());
+    return this.importCardFromQR({
+      nombre,
+      email: isPhone ? "" : emailOrPhone.trim(),
+      telefono: isPhone ? emailOrPhone.trim() : ""
+    });
   },
 
   addStamps(cardId: string, count: number = 1, empleado: string = "Paula"): { success: boolean; card?: Card; unlockedReward?: boolean } {

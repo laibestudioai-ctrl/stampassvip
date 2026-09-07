@@ -123,42 +123,57 @@ export default function NegocioTPVPage() {
 
   const processScannedData = (rawText: string) => {
     let text = rawText.trim();
+    if (!text) return;
 
     // 1. Sanitize Spanish keyboard dropped shift error (e.g. 2sellos -> "sellos")
     text = text.replace(/([0-9]+)(sellos|id|nombre|email)":/g, '"$2":');
 
-    let targetId = text;
+    let card: Card | null = null;
 
-    // 2. Try JSON parsing
-    if (text.startsWith("{") && text.endsWith("}")) {
+    // 2. Try JSON parsing (full payload from customer QR)
+    if (text.startsWith("{") || text.includes('"id"') || text.includes('"nombre"') || text.includes('"email"')) {
       try {
         const parsed = JSON.parse(text);
-        if (parsed.id) targetId = parsed.id;
+        card = db.importCardFromQR(parsed);
       } catch (e) {
-        // Extract id with regex fallback
-        const match = text.match(/"id"s*:s*"([^"]+)"/);
-        if (match) targetId = match[1];
+        const idMatch = text.match(/"id"\s*:\s*"([^"]+)"/);
+        const nameMatch = text.match(/"nombre"\s*:\s*"([^"]+)"/);
+        const emailMatch = text.match(/"email"\s*:\s*"([^"]+)"/);
+        const sellosMatch = text.match(/"sellos"\s*:\s*([0-9]+)/);
+        if (idMatch || nameMatch || emailMatch) {
+          card = db.importCardFromQR({
+            id: idMatch ? idMatch[1] : undefined,
+            nombre: nameMatch ? nameMatch[1] : undefined,
+            email: emailMatch ? emailMatch[1] : undefined,
+            sellos: sellosMatch ? parseInt(sellosMatch[1], 10) : 0
+          });
+        }
       }
     }
 
     // 3. Try URL parsing (e.g. https://.../cliente?id=card-123)
-    if (targetId.includes("id=")) {
-      const match = targetId.match(/[?&]id=([^&]+)/);
-      if (match) targetId = decodeURIComponent(match[1]);
+    if (!card && text.includes("id=")) {
+      const match = text.match(/[?&]id=([^&]+)/);
+      if (match) {
+        const idFromUrl = decodeURIComponent(match[1]);
+        card = db.getCardById(idFromUrl) || db.getCardBySearch(idFromUrl);
+      }
     }
 
-    // 4. Find or create the card
-    let card = db.getCardById(targetId) || db.getCardBySearch(targetId);
-
+    // 4. Try direct ID or search lookup
     if (!card) {
-      // If not found, create client seamlessly
-      card = db.addCustomer("Cliente VIP (" + targetId.slice(-4) + ")", targetId);
+      card = db.getCardById(text) || db.getCardBySearch(text);
+    }
+
+    // 5. If still not found and valid ID format
+    if (!card && text.length > 2) {
+      card = db.addCustomer("Cliente VIP (" + text.slice(-4) + ")", text);
     }
 
     if (card) {
       setSelectedCard({ ...card });
       setSearchQuery("");
-      setScanBanner(`⚡ ¡Escaneado con Pistola USB: ${card.cliente.nombre}!`);
+      setScanBanner(`⚡ ¡Pase VIP Detectado: ${card.cliente.nombre}!`);
       playChime("scan");
       setTimeout(() => setScanBanner(null), 4000);
       refreshData();
@@ -237,11 +252,17 @@ export default function NegocioTPVPage() {
           </div>
         </div>
 
-        {/* Scanner Active Indicator */}
+        {/* Scanner & Plan Indicator */}
         <div className="flex items-center space-x-2">
+          <Link
+            href="/planes"
+            className="flex items-center space-x-1.5 bg-gradient-to-r from-amber-500/20 to-purple-600/20 hover:from-amber-500/30 hover:to-purple-600/30 border border-amber-500/40 px-3 py-1.5 rounded-xl text-xs text-amber-300 font-extrabold transition"
+          >
+            <span>👑 Plan Pro (20€)</span>
+          </Link>
           <div className="hidden sm:flex items-center space-x-1.5 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl text-xs text-amber-300 font-bold">
             <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-            <span>Pistola USB Lista (Dispara en cualquier momento)</span>
+            <span>Pistola USB Lista</span>
           </div>
         </div>
       </header>
@@ -413,9 +434,17 @@ export default function NegocioTPVPage() {
                 type="text"
                 placeholder="Buscar por nombre o teléfono..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value;
+                  if ((val.startsWith("{") && val.endsWith("}")) || (val.startsWith("{") && val.includes('"id"')) || val.startsWith("card-")) {
+                    processScannedData(val);
+                  } else {
+                    setSearchQuery(val);
+                  }
+                }}
                 onKeyDown={e => {
                   if (e.key === "Enter" && searchQuery.trim()) {
+                    e.preventDefault();
                     processScannedData(searchQuery.trim());
                   }
                 }}
