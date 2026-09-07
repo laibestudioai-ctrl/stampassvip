@@ -1,0 +1,535 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>👑 StamPass VIP - Tarjetas de Fidelización Digitales</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
+  <style>
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    .glow-bg {
+      background: radial-gradient(circle at 50% 20%, rgba(217, 119, 6, 0.15) 0%, rgba(147, 51, 234, 0.1) 50%, transparent 80%);
+    }
+  </style>
+</head>
+<body class="bg-[#0B0F19] text-white min-h-screen font-sans flex flex-col p-3 sm:p-5 relative overflow-x-hidden select-none">
+  <!-- Glow -->
+  <div class="fixed inset-0 glow-bg pointer-events-none"></div>
+
+  <!-- Header -->
+  <header class="flex justify-between items-center pb-3 border-b border-white/10 mb-4 z-10">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-purple-600 p-0.5 flex items-center justify-center text-xl shadow-lg shadow-amber-500/20">
+        ⛪
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="text-base font-black text-white leading-none">Bar La Iglesia</h1>
+          <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md flex items-center space-x-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>TPV Flotante Activo</span>
+          </span>
+        </div>
+        <p class="text-[11px] text-gray-400">Terminal de Fidelización VIP · InnovaTPV</p>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-2">
+      <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-xl text-xs font-black">
+        👑 Plan Pro (20€)
+      </span>
+      <div class="hidden sm:flex items-center space-x-1.5 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-xl text-xs text-amber-300 font-bold">
+        <span>⚡ Pistola USB Lista</span>
+      </div>
+      <button onclick="toggleFullScreen()" class="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold text-gray-300">
+        ⛶ Pantalla Completa
+      </button>
+    </div>
+  </header>
+
+  <!-- Banner Notificación -->
+  <div id="scanBanner" class="hidden mb-4 p-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl shadow-xl flex items-center justify-between font-bold text-xs z-20 animate-bounce">
+    <div class="flex items-center space-x-2">
+      <span>⚡</span>
+      <span id="bannerText">¡Cliente Detectado!</span>
+    </div>
+    <button onclick="document.getElementById('scanBanner').classList.add('hidden')" class="text-white/80 hover:text-white">✕</button>
+  </div>
+
+  <!-- Contenedor Principal -->
+  <main class="grid grid-cols-1 lg:grid-cols-12 gap-5 z-10 flex-1">
+    <!-- Columna Izquierda: Ficha del Cliente Seleccionado -->
+    <div class="lg:col-span-7 space-y-4">
+      <div id="cardDisplay" class="bg-[#151324] border border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 relative">
+        <!-- Encabezado Cliente -->
+        <div class="flex justify-between items-start">
+          <div class="space-y-1">
+            <span class="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+              Cliente VIP en Barra
+            </span>
+            <h2 id="clientName" class="text-2xl font-black text-white tracking-tight">Paula Milena Aristizabal Rodriguez</h2>
+            <p id="clientContact" class="text-xs text-gray-400 font-mono">paula791536@gmail.com</p>
+          </div>
+
+          <div class="text-right">
+            <span id="stampCounter" class="text-3xl font-black text-amber-400 font-mono">0 <span class="text-sm text-gray-500">/ 10</span></span>
+            <span class="block text-[10px] text-gray-400 uppercase font-bold">Sellos de Café</span>
+          </div>
+        </div>
+
+        <!-- Grid de 10 Sellos -->
+        <div id="stampsGrid" class="grid grid-cols-5 gap-3 pt-1">
+          <!-- Generado por JS -->
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="space-y-3 pt-2">
+          <div id="addStampButtons" class="grid grid-cols-3 gap-3">
+            <button onclick="addStamps(1)" class="col-span-2 py-4 px-4 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-black font-black text-sm rounded-2xl shadow-xl shadow-amber-500/25 flex items-center justify-center space-x-2 transition transform active:scale-95 cursor-pointer">
+              <span>➕ SUMAR 1 SELLO (1 CAFÉ)</span>
+            </button>
+            <button onclick="addStamps(2)" class="py-4 px-3 bg-white/10 hover:bg-white/15 border border-white/15 text-white font-black text-xs rounded-2xl flex items-center justify-center space-x-1.5 transition active:scale-95 cursor-pointer">
+              <span>+2 Sellos</span>
+            </button>
+          </div>
+
+          <button id="redeemButton" onclick="redeemPrize()" class="hidden w-full py-4 px-4 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 hover:from-purple-500 hover:to-pink-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-purple-600/40 flex items-center justify-center space-x-2 transition transform active:scale-98 animate-pulse cursor-pointer">
+            <span>🏆 CANJEAR 10º CAFÉ GRATIS (REINICIAR A 0)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Historial de Barra -->
+      <div class="bg-[#131124] border border-white/10 rounded-3xl p-4 space-y-3">
+        <div class="flex items-center justify-between border-b border-white/10 pb-2">
+          <h3 class="text-xs font-bold text-white uppercase tracking-wider">Historial de Sellos en Barra</h3>
+          <span class="text-[10px] text-gray-500 font-mono">Hoy · Bar La Iglesia</span>
+        </div>
+        <div id="logsList" class="divide-y divide-white/5 max-h-40 overflow-y-auto text-xs">
+          <!-- Logs renderizados por JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna Derecha: Buscador y Lista de Clientes -->
+    <div class="lg:col-span-5 space-y-4">
+      <div class="bg-[#131124] border border-white/10 rounded-3xl p-4 space-y-3">
+        <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Buscador Manual de Cliente</h3>
+
+        <!-- Input de Búsqueda con interceptor de pistola USB -->
+        <div class="relative">
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Buscar por nombre, teléfono o dispara el QR..."
+            class="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 pl-10 pr-9 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 font-medium"
+            oninput="handleSearchInput(this.value)"
+            onkeydown="handleSearchKeyDown(event)"
+          />
+          <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">🔍</span>
+          <button onclick="clearSearch()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs">✕</button>
+        </div>
+
+        <!-- Filtro Letras A-Z -->
+        <div id="lettersBar" class="flex flex-wrap gap-1 border-b border-white/10 pb-2">
+          <!-- Generado por JS -->
+        </div>
+
+        <!-- Lista de Clientes -->
+        <div id="clientsList" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+          <!-- Generado por JS -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // --- ESTADO Y BASE DE DATOS LOCAL ---
+    const DEFAULT_CARDS = [
+      {
+        id: "card-1788348700801-s4sm",
+        nombre: "Paula Milena Aristizabal Rodriguez",
+        email: "paula791536@gmail.com",
+        telefono: "633557024",
+        sellos: 0,
+        premio_pendiente: false
+      },
+      {
+        id: "card-juanpablo",
+        nombre: "Juan Pablo Guerrero",
+        email: "juanpablo@laibestudioai.com",
+        telefono: "612345678",
+        sellos: 3,
+        premio_pendiente: false
+      }
+    ];
+
+    let cards = [];
+    let selectedCard = null;
+    let selectedLetter = "TODOS";
+    let logs = [];
+
+    function loadData() {
+      try {
+        const stored = localStorage.getItem("stampass_cards_db");
+        cards = stored ? JSON.parse(stored) : DEFAULT_CARDS;
+      } catch (e) {
+        cards = DEFAULT_CARDS;
+      }
+      try {
+        const storedLogs = localStorage.getItem("stampass_logs_db");
+        logs = storedLogs ? JSON.parse(storedLogs) : [];
+      } catch (e) {
+        logs = [];
+      }
+      if (cards.length > 0) {
+        selectedCard = cards[0];
+      }
+      render();
+    }
+
+    function saveData() {
+      localStorage.setItem("stampass_cards_db", JSON.stringify(cards));
+      localStorage.setItem("stampass_logs_db", JSON.stringify(logs.slice(0, 30)));
+    }
+
+    // --- AUDIO CHIMES ---
+    function playChime(type) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === "scan") {
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.2);
+        } else if (type === "stamp") {
+          osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+          osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08);
+          osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.16);
+          gain.gain.setValueAtTime(0.25, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.35);
+        } else if (type === "reward") {
+          osc.frequency.setValueAtTime(440, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.4);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.5);
+        }
+      } catch (e) {}
+    }
+
+    // --- PROCESADOR UNIVERSAL DE LECTURAS QR ---
+    function processScannedText(rawText) {
+      if (!rawText) return;
+      let text = rawText.trim();
+
+      // Arreglar comillas perdidas en teclados ES
+      text = text.replace(/([0-9]+)(sellos|id|nombre|email)":/g, '"$2":');
+
+      let customerData = null;
+
+      // 1. Decodificar JSON directo
+      if (text.startsWith("{") || text.includes('"id"') || text.includes('"nombre"') || text.includes('"email"')) {
+        try {
+          customerData = JSON.parse(text);
+        } catch (e) {
+          const idMatch = text.match(/"id"\s*:\s*"([^"]+)"/);
+          const nameMatch = text.match(/"nombre"\s*:\s*"([^"]+)"/);
+          const emailMatch = text.match(/"email"\s*:\s*"([^"]+)"/);
+          const sellosMatch = text.match(/"sellos"\s*:\s*([0-9]+)/);
+          customerData = {
+            id: idMatch ? idMatch[1] : undefined,
+            nombre: nameMatch ? nameMatch[1] : undefined,
+            email: emailMatch ? emailMatch[1] : undefined,
+            sellos: sellosMatch ? parseInt(sellosMatch[1], 10) : 0
+          };
+        }
+      }
+
+      // 2. Si viene por URL
+      if (!customerData && text.includes("id=")) {
+        const match = text.match(/[?&]id=([^&]+)/);
+        if (match) {
+          customerData = { id: decodeURIComponent(match[1]) };
+        }
+      }
+
+      // 3. Si viene como ID plano
+      if (!customerData) {
+        customerData = { id: text };
+      }
+
+      // 4. Buscar cliente existente
+      let existing = cards.find(c => 
+        (customerData.id && c.id === customerData.id) ||
+        (customerData.email && c.email && c.email.toLowerCase() === customerData.email.toLowerCase()) ||
+        (customerData.nombre && c.nombre && c.nombre.toLowerCase() === customerData.nombre.toLowerCase())
+      );
+
+      if (existing) {
+        if (customerData.nombre && (!existing.nombre || existing.nombre.startsWith("Cliente VIP"))) {
+          existing.nombre = customerData.nombre;
+        }
+        if (customerData.email && !existing.email) {
+          existing.email = customerData.email;
+        }
+        selectedCard = existing;
+      } else {
+        // Crear nuevo cliente instantáneamente
+        const newCard = {
+          id: customerData.id || "card-" + Date.now(),
+          nombre: customerData.nombre || ("Cliente VIP (" + (customerData.id || "Nuevo").slice(-4) + ")"),
+          email: customerData.email || "",
+          telefono: customerData.telefono || "",
+          sellos: customerData.sellos || 0,
+          premio_pendiente: (customerData.sellos || 0) >= 10
+        };
+        cards.unshift(newCard);
+        selectedCard = newCard;
+      }
+
+      saveData();
+      clearSearch();
+      showBanner(`⚡ ¡Pase VIP Detectado: ${selectedCard.nombre}!`);
+      playChime("scan");
+      render();
+    }
+
+    // --- ACCIONES DE SELLADO ---
+    function addStamps(count) {
+      if (!selectedCard) return;
+      const prev = selectedCard.sellos || 0;
+      const next = (prev + count) % 10;
+      const unlocked = (prev + count) >= 10;
+
+      selectedCard.sellos = next;
+      if (unlocked) {
+        selectedCard.premio_pendiente = true;
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        playChime("reward");
+        showBanner(`🎉 ¡10º CAFÉ COMPLETADO PARA ${selectedCard.nombre}!`);
+      } else {
+        playChime("stamp");
+        showBanner(`✅ +${count} Sello sumado a ${selectedCard.nombre} (${next}/10)`);
+      }
+
+      logs.unshift({
+        id: "log-" + Date.now(),
+        nombre: selectedCard.nombre,
+        accion: `+${count} Sello(s)`,
+        hora: new Date().toLocaleTimeString("es-ES")
+      });
+
+      saveData();
+      render();
+    }
+
+    function redeemPrize() {
+      if (!selectedCard) return;
+      selectedCard.premio_pendiente = false;
+      confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 } });
+      playChime("reward");
+      showBanner(`🏆 ¡Premio canjeado para ${selectedCard.nombre}!`);
+
+      logs.unshift({
+        id: "log-" + Date.now(),
+        nombre: selectedCard.nombre,
+        accion: `Canje 10º Café GRATIS`,
+        hora: new Date().toLocaleTimeString("es-ES")
+      });
+
+      saveData();
+      render();
+    }
+
+    // --- TECLADO Y LISTENER GLOBAL USB ---
+    let keyBuffer = "";
+    let lastKeyTime = Date.now();
+
+    window.addEventListener("keydown", (e) => {
+      const now = Date.now();
+      const diff = now - lastKeyTime;
+      lastKeyTime = now;
+
+      if (e.key === "Enter") {
+        if (keyBuffer.trim().length > 1) {
+          e.preventDefault();
+          processScannedText(keyBuffer.trim());
+          keyBuffer = "";
+        }
+        return;
+      }
+
+      if (e.key.length === 1) {
+        if (diff > 250) {
+          keyBuffer = e.key;
+        } else {
+          keyBuffer += e.key;
+        }
+      }
+    });
+
+    function handleSearchInput(val) {
+      if ((val.startsWith("{") && val.endsWith("}")) || (val.startsWith("{") && val.includes('"id"')) || val.startsWith("card-")) {
+        processScannedText(val);
+      } else {
+        renderClientsList();
+      }
+    }
+
+    function handleSearchKeyDown(e) {
+      if (e.key === "Enter") {
+        const val = e.target.value.trim();
+        if (val) {
+          e.preventDefault();
+          processScannedText(val);
+        }
+      }
+    }
+
+    function clearSearch() {
+      const el = document.getElementById("searchInput");
+      if (el) el.value = "";
+      renderClientsList();
+    }
+
+    function showBanner(text) {
+      const banner = document.getElementById("scanBanner");
+      const bannerText = document.getElementById("bannerText");
+      bannerText.innerText = text;
+      banner.classList.remove("hidden");
+      setTimeout(() => banner.classList.add("hidden"), 4000);
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // --- RENDERIZADO UI ---
+    function render() {
+      if (selectedCard) {
+        document.getElementById("clientName").innerText = selectedCard.nombre;
+        document.getElementById("clientContact").innerText = selectedCard.email || selectedCard.telefono || selectedCard.id;
+        document.getElementById("stampCounter").innerHTML = `${selectedCard.sellos} <span class="text-sm text-gray-500">/ 10</span>`;
+
+        // Render stamps grid
+        const grid = document.getElementById("stampsGrid");
+        grid.innerHTML = "";
+        for (let i = 0; i < 10; i++) {
+          const active = i < selectedCard.sellos;
+          const is10th = i === 9;
+          const div = document.createElement("div");
+          div.className = `aspect-square rounded-2xl flex flex-col items-center justify-center border transition-all duration-300 ${
+            active 
+              ? "bg-gradient-to-tr from-amber-500 to-orange-500 border-amber-300 text-black shadow-lg shadow-amber-500/25 scale-105 font-black text-xl"
+              : is10th 
+              ? "bg-purple-950/40 border-purple-500/50 text-amber-400 text-lg font-black"
+              : "bg-white/5 border-white/10 text-gray-600 font-bold text-sm"
+          }`;
+          div.innerHTML = active ? "✓" : (is10th ? "🏆" : (i + 1));
+          grid.appendChild(div);
+        }
+
+        // Toggle Buttons
+        const redeemBtn = document.getElementById("redeemButton");
+        const addBtns = document.getElementById("addStampButtons");
+        if (selectedCard.premio_pendiente || selectedCard.sellos >= 10) {
+          redeemBtn.classList.remove("hidden");
+          addBtns.classList.add("hidden");
+        } else {
+          redeemBtn.classList.add("hidden");
+          addBtns.classList.remove("hidden");
+        }
+      }
+
+      // Render Logs
+      const logsEl = document.getElementById("logsList");
+      logsEl.innerHTML = logs.length > 0 
+        ? logs.map(l => `
+            <div class="py-1.5 flex justify-between items-center">
+              <div>
+                <span class="font-bold text-white">${l.nombre}</span>
+                <span class="text-[10px] text-gray-500 ml-2">${l.hora}</span>
+              </div>
+              <span class="font-mono font-bold ${l.accion.includes('Canje') ? 'text-purple-400' : 'text-amber-400'}">${l.accion}</span>
+            </div>
+          `).join("")
+        : '<p class="text-xs text-gray-500 py-2 text-center">Aún no hay sellos hoy.</p>';
+
+      renderLetters();
+      renderClientsList();
+    }
+
+    function renderLetters() {
+      const letters = ["TODOS", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
+      const el = document.getElementById("lettersBar");
+      el.innerHTML = letters.map(l => `
+        <button onclick="selectedLetter='${l}'; renderClientsList();" class="px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${selectedLetter === l ? 'bg-amber-500 text-black font-extrabold' : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'}">
+          ${l}
+        </button>
+      `).join("");
+    }
+
+    function renderClientsList() {
+      const q = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
+      const filtered = cards.filter(c => {
+        const matchesQuery = !q || q.startsWith("{") ||
+          c.nombre.toLowerCase().includes(q) ||
+          (c.telefono && c.telefono.includes(q)) ||
+          (c.email && c.email.toLowerCase().includes(q)) ||
+          c.id.toLowerCase().includes(q);
+        const matchesLetter = selectedLetter === "TODOS" || c.nombre.toUpperCase().startsWith(selectedLetter);
+        return matchesQuery && matchesLetter;
+      });
+
+      const listEl = document.getElementById("clientsList");
+      listEl.innerHTML = filtered.length > 0
+        ? filtered.map(c => `
+            <button onclick="selectClient('${c.id}')" class="w-full text-left p-2.5 rounded-2xl border transition flex items-center justify-between cursor-pointer ${selectedCard?.id === c.id ? 'bg-amber-500/15 border-amber-500/50 text-white shadow-md' : 'bg-white/5 hover:bg-white/10 border-white/5 text-gray-300 hover:text-white'}">
+              <div class="space-y-0.5">
+                <p class="text-xs font-bold text-white">${c.nombre}</p>
+                <p class="text-[10px] text-gray-400">${c.email || c.telefono || c.id}</p>
+              </div>
+              <div class="text-right">
+                <span class="text-xs font-black font-mono text-amber-400">${c.sellos}/10</span>
+                <span class="block text-[9px] text-gray-500">Sellos</span>
+              </div>
+            </button>
+          `).join("")
+        : '<p class="text-xs text-gray-500 py-4 text-center">No hay clientes con ese filtro.</p>';
+    }
+
+    function selectClient(id) {
+      const c = cards.find(x => x.id === id);
+      if (c) {
+        selectedCard = c;
+        playChime("scan");
+        render();
+      }
+    }
+
+    // Iniciar al cargar
+    loadData();
+  </script>
+</body>
+</html>
