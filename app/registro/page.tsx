@@ -1,11 +1,11 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Sparkles, ShieldCheck, ArrowRight, Lock, Check } from "lucide-react";
 import { db } from "@/lib/db";
 
-export default function RegistroPage() {
+function RegistroContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("query") || "";
@@ -109,5 +109,13 @@ export default function RegistroPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegistroPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0B0F19] text-white flex items-center justify-center p-4"><p className="text-sm text-gray-400">Cargando...</p></div>}>
+      <RegistroContent />
+    </Suspense>
   );
 }

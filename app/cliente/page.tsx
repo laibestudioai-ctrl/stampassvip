@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Coffee, Sparkles, Check, Download, Share2, Info, Trophy, CheckCircle2 } from "lucide-react";
@@ -7,7 +7,7 @@ import { QRCodeSVG } from "qrcode.react";
 import confetti from "canvas-confetti";
 import { db, Card } from "@/lib/db";
 
-export default function ClientePage() {
+function ClienteContent() {
   const searchParams = useSearchParams();
   const cardId = searchParams.get("id") || "card-vip-default";
   const esNuevo = searchParams.get("nuevo") === "1";
@@ -187,5 +187,13 @@ export default function ClientePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ClientePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0B0F19] text-white flex items-center justify-center p-4"><p className="text-sm text-gray-400">Cargando tarjeta VIP...</p></div>}>
+      <ClienteContent />
+    </Suspense>
   );
 }
