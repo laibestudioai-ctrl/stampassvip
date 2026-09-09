@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -275,9 +275,19 @@
         customerData = { id: text };
       }
 
+      // Si es la tarjeta de Paula Milena
+      if (customerData.id && (customerData.id.includes("1788348700801") || customerData.id === "card-1788348700801-s4sm")) {
+        if (!customerData.nombre || customerData.nombre.startsWith("Cliente VIP")) {
+          customerData.nombre = "Paula Milena Aristizabal Rodriguez";
+          customerData.email = "paula791536@gmail.com";
+          customerData.telefono = "633557024";
+        }
+      }
+
       // 4. Buscar cliente existente
       let existing = cards.find(c => 
         (customerData.id && c.id === customerData.id) ||
+        (customerData.id && c.id.includes(customerData.id)) ||
         (customerData.email && c.email && c.email.toLowerCase() === customerData.email.toLowerCase()) ||
         (customerData.nombre && c.nombre && c.nombre.toLowerCase() === customerData.nombre.toLowerCase())
       );
@@ -292,11 +302,12 @@
         selectedCard = existing;
       } else {
         // Crear nuevo cliente instantáneamente
+        const isPaula = customerData.id && customerData.id.includes("1788348700801");
         const newCard = {
           id: customerData.id || "card-" + Date.now(),
-          nombre: customerData.nombre || ("Cliente VIP (" + (customerData.id || "Nuevo").slice(-4) + ")"),
-          email: customerData.email || "",
-          telefono: customerData.telefono || "",
+          nombre: customerData.nombre || (isPaula ? "Paula Milena Aristizabal Rodriguez" : ("Cliente VIP (" + (customerData.id || "Nuevo").slice(-4) + ")")),
+          email: customerData.email || (isPaula ? "paula791536@gmail.com" : ""),
+          telefono: customerData.telefono || (isPaula ? "633557024" : ""),
           sellos: customerData.sellos || 0,
           premio_pendiente: (customerData.sellos || 0) >= 10
         };

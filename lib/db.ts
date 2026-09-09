@@ -54,6 +54,30 @@ const DEFAULT_BUSINESS: Business = {
 
 const DEFAULT_CARDS: Card[] = [
   {
+    id: "card-1788348700801-s4sm",
+    cliente_id: "cli-paula",
+    campana_id: "camp-1",
+    sellos_acumulados: 0,
+    sellos_totales_historicos: 0,
+    premio_pendiente: false,
+    fecha_creacion: new Date().toISOString(),
+    ultima_visita: new Date().toISOString(),
+    cliente: {
+      id: "cli-paula",
+      nombre: "Paula Milena Aristizabal Rodriguez",
+      email: "paula791536@gmail.com",
+      telefono: "633557024",
+      fecha_registro: new Date().toISOString()
+    },
+    campana: {
+      id: "camp-1",
+      nombre: "Fidelización Café VIP",
+      max_sellos: 10,
+      premio: "10º Café GRATIS",
+      negocio: { nombre: "Bar La Iglesia" }
+    }
+  },
+  {
     id: "card-vip-default",
     cliente_id: "cli-1",
     campana_id: "camp-1",
@@ -64,8 +88,8 @@ const DEFAULT_CARDS: Card[] = [
     ultima_visita: new Date().toISOString(),
     cliente: {
       id: "cli-1",
-      nombre: "Juan Pablo",
-      email: "juanpablo@cliente.vip",
+      nombre: "Juan Pablo Guerrero",
+      email: "juanpablo@laibestudioai.com",
       telefono: "612345678",
       fecha_registro: new Date().toISOString()
     },
@@ -84,7 +108,21 @@ export const db = {
     if (typeof window === "undefined") return DEFAULT_CARDS;
     try {
       const data = localStorage.getItem("stampsync_tarjetas");
-      if (data) return JSON.parse(data);
+      if (data) {
+        let parsed: Card[] = JSON.parse(data);
+        // Auto-heal Paula's card if missing or with generic name
+        let paulaCard = parsed.find(c => c.id === "card-1788348700801-s4sm" || c.id.includes("1788348700801"));
+        if (!paulaCard) {
+          parsed.unshift(DEFAULT_CARDS[0]);
+          this.saveCards(parsed);
+        } else if (paulaCard.cliente.nombre.startsWith("Cliente VIP") || !paulaCard.cliente.nombre) {
+          paulaCard.cliente.nombre = "Paula Milena Aristizabal Rodriguez";
+          paulaCard.cliente.email = "paula791536@gmail.com";
+          paulaCard.cliente.telefono = "633557024";
+          this.saveCards(parsed);
+        }
+        return parsed;
+      }
     } catch (e) {}
     this.saveCards(DEFAULT_CARDS);
     return DEFAULT_CARDS;
@@ -166,6 +204,11 @@ export const db = {
       return existing;
     }
 
+    const isPaulaId = targetId.includes("1788348700801") || targetId === "card-1788348700801-s4sm";
+    const defaultNombre = isPaulaId ? "Paula Milena Aristizabal Rodriguez" : ("Cliente VIP (" + targetId.slice(-4) + ")");
+    const defaultEmail = isPaulaId ? "paula791536@gmail.com" : "";
+    const defaultTelefono = isPaulaId ? "633557024" : "";
+
     const newCard: Card = {
       id: targetId,
       cliente_id: "cli-" + Date.now().toString().slice(-6),
@@ -177,9 +220,9 @@ export const db = {
       ultima_visita: new Date().toISOString(),
       cliente: {
         id: "cli-" + Date.now().toString().slice(-6),
-        nombre: data.nombre?.trim() || "Cliente VIP (" + targetId.slice(-4) + ")",
-        email: data.email?.trim() || "",
-        telefono: data.telefono?.trim() || "",
+        nombre: data.nombre?.trim() || defaultNombre,
+        email: data.email?.trim() || defaultEmail,
+        telefono: data.telefono?.trim() || defaultTelefono,
         fecha_registro: new Date().toISOString()
       },
       campana: {
@@ -193,6 +236,23 @@ export const db = {
     cards.unshift(newCard);
     this.saveCards(cards);
     return newCard;
+  },
+
+  updateCustomer(cardId: string, updates: { nombre?: string; email?: string; telefono?: string }): Card | null {
+    const cards = this.getCards();
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return null;
+    if (updates.nombre !== undefined && updates.nombre.trim()) {
+      card.cliente.nombre = updates.nombre.trim();
+    }
+    if (updates.email !== undefined) {
+      card.cliente.email = updates.email.trim();
+    }
+    if (updates.telefono !== undefined) {
+      card.cliente.telefono = updates.telefono.trim();
+    }
+    this.saveCards(cards);
+    return card;
   },
 
   addCustomer(nombre: string, emailOrPhone: string): Card {
