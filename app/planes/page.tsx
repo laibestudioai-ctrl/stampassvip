@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useState } from "react";
 import Link from "next/link";
 import { 
@@ -18,30 +18,35 @@ import confetti from "canvas-confetti";
 
 export default function PlanesPage() {
   const [codigoPromo, setCodigoPromo] = useState("");
-  const [descuentoAplicado, setDescuentoAplicado] = useState(false);
+  const [descuentoTipo, setDescuentoTipo] = useState<"ninguno" | "veinte" | "gratis">("ninguno");
   const [errorCodigo, setErrorCodigo] = useState("");
   const [activadoExito, setActivadoExito] = useState(false);
 
-  const codigosValidos = ["PROMO20", "VIP20", "BAR20", "LAIBE20", "PRO20", "BARLAIGLESIA"];
+  const codigosGratis = ["GRATIS100", "FREE100", "BARLAIGLESIA", "FAMILIA", "LAIBE100", "100GRATIS", "VIP100", "HERMANA", "GRATIS"];
+  const codigosVeinte = ["PROMO20", "VIP20", "BAR20", "LAIBE20", "PRO20"];
 
   const handleAplicarCodigo = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorCodigo("");
     const codigo = codigoPromo.trim().toUpperCase();
 
-    if (codigosValidos.includes(codigo)) {
-      setDescuentoAplicado(true);
+    if (codigosGratis.includes(codigo)) {
+      setDescuentoTipo("gratis");
+      confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
+    } else if (codigosVeinte.includes(codigo)) {
+      setDescuentoTipo("veinte");
       confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
     } else {
-      setErrorCodigo("Código promocional no válido. Prueba con PROMO20 o VIP20.");
+      setErrorCodigo("Código no válido. Prueba con GRATIS100, BARLAIGLESIA o PROMO20.");
     }
   };
 
   const handleActivarPlan = () => {
     try {
-      localStorage.setItem("stampass_plan", "PRO_20");
+      const planCode = descuentoTipo === "gratis" ? "PRO_FREE_100" : "PRO_20";
+      localStorage.setItem("stampass_plan", planCode);
     } catch (e) {}
-    confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+    confetti({ particleCount: 150, spread: 100, origin: { y: 0.5 } });
     setActivadoExito(true);
   };
 
@@ -102,7 +107,13 @@ export default function PlanesPage() {
                 Aplicar
               </button>
             </div>
-            {descuentoAplicado && (
+            {descuentoTipo === "gratis" && (
+              <p className="text-[11px] text-emerald-400 font-bold flex items-center space-x-1 pt-1 animate-pulse">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>🎉 ¡Código 100% GRATIS aplicado! Plan Pro a 0€ de por vida.</span>
+              </p>
+            )}
+            {descuentoTipo === "veinte" && (
               <p className="text-[11px] text-emerald-400 font-bold flex items-center space-x-1 pt-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>¡Código VIP aplicado con éxito! Plan Pro a 20€/mes.</span>
@@ -184,19 +195,34 @@ export default function PlanesPage() {
 
               <div className="space-y-1">
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-4xl font-black text-amber-400 font-mono">20€</span>
-                  {descuentoAplicado ? (
+                  {descuentoTipo === "gratis" ? (
                     <>
+                      <span className="text-4xl font-black text-emerald-400 font-mono">0€</span>
+                      <span className="text-sm text-gray-500 line-through font-mono">39€</span>
+                      <span className="text-xs text-emerald-300 font-bold bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30 animate-pulse">
+                        100% GRATIS DE POR VIDA
+                      </span>
+                    </>
+                  ) : descuentoTipo === "veinte" ? (
+                    <>
+                      <span className="text-4xl font-black text-amber-400 font-mono">20€</span>
                       <span className="text-sm text-gray-500 line-through font-mono">39€</span>
                       <span className="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                         Código VIP aplicado (-19€)
                       </span>
                     </>
                   ) : (
-                    <span className="text-xs text-gray-400">/mes (Tarifa Especial)</span>
+                    <>
+                      <span className="text-4xl font-black text-amber-400 font-mono">20€</span>
+                      <span className="text-xs text-gray-400">/mes (Tarifa Especial)</span>
+                    </>
                   )}
                 </div>
-                <p className="text-[11px] text-gray-400">Facturación mensual sin permanencia. Cancela cuando quieras.</p>
+                <p className="text-[11px] text-gray-400">
+                  {descuentoTipo === "gratis" 
+                    ? "Acceso VIP total desbloqueado sin pagos recurrentes." 
+                    : "Facturación mensual sin permanencia. Cancela cuando quieras."}
+                </p>
               </div>
 
               <ul className="space-y-2.5 text-xs text-gray-200 pt-2">
@@ -230,7 +256,9 @@ export default function PlanesPage() {
             <div className="space-y-2.5 pt-2">
               {activadoExito ? (
                 <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl text-center space-y-1">
-                  <p className="text-xs font-black text-emerald-300">✅ ¡PLAN PRO ACTIVADO A 20€/MES!</p>
+                  <p className="text-xs font-black text-emerald-300">
+                    {descuentoTipo === "gratis" ? "🎉 ¡PLAN PRO ACTIVADO 100% GRATIS DE POR VIDA!" : "✅ ¡PLAN PRO ACTIVADO A 20€/MES!"}
+                  </p>
                   <Link href="/negocio" className="text-[11px] text-white underline font-bold">
                     Ir al panel de cobros de tu negocio
                   </Link>
@@ -242,12 +270,12 @@ export default function PlanesPage() {
                     onClick={handleActivarPlan}
                     className="w-full py-4 px-4 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-black font-black text-xs rounded-2xl shadow-xl shadow-amber-500/25 flex items-center justify-center space-x-2 transition transform active:scale-95 cursor-pointer"
                   >
-                    <span>Activar Plan Pro a 20€/mes</span>
+                    <span>{descuentoTipo === "gratis" ? "🎉 Activar Plan Pro 100% Gratis (0€)" : "Activar Plan Pro a 20€/mes"}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
 
                   <a
-                    href="https://wa.me/34633557024?text=Hola%20Juan%20Pablo%2C%20quiero%20activar%20el%20Plan%20Pro%20de%20StamPass%20VIP%20por%2020%E2%82%AC%2Fmes%20para%20mi%20local."
+                    href="https://wa.me/34633557024?text=Hola%20Juan%20Pablo%2C%20quiero%20activar%20el%20Plan%20Pro%20de%20StamPass%20VIP%20para%20mi%20local."
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full py-2.5 px-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 font-bold text-xs rounded-2xl flex items-center justify-center space-x-1.5 transition"
