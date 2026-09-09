@@ -27,8 +27,13 @@ function ClienteContent() {
 
   const qrPayload = useMemo(() => {
     if (!card) return "card-vip-default";
-    // Clean, robust payload: simple direct ID to prevent Spanish keyboard dropped shift quotes
-    return card.id;
+    return JSON.stringify({
+      id: card.id,
+      nombre: card.cliente.nombre,
+      email: card.cliente.email || "",
+      telefono: card.cliente.telefono || "",
+      sellos: card.sellos_acumulados
+    });
   }, [card]);
 
   if (!card) {
