@@ -177,6 +177,17 @@
       try {
         const stored = localStorage.getItem("stampass_cards_db");
         cards = stored ? JSON.parse(stored) : DEFAULT_CARDS;
+        // Auto-heal si Paula estaba guardada como Cliente VIP o faltaba
+        let paulaCard = cards.find(c => c.id === "card-1788348700801-s4sm" || c.id.includes("1788348700801"));
+        if (!paulaCard) {
+          cards.unshift(DEFAULT_CARDS[0]);
+          saveData();
+        } else if (!paulaCard.nombre || paulaCard.nombre.startsWith("Cliente VIP")) {
+          paulaCard.nombre = "Paula Milena Aristizabal Rodriguez";
+          paulaCard.email = "paula791536@gmail.com";
+          paulaCard.telefono = "633557024";
+          saveData();
+        }
       } catch (e) {
         cards = DEFAULT_CARDS;
       }
@@ -393,11 +404,20 @@
         } else {
           keyBuffer += e.key;
         }
+
+        // Instant trigger si ya tiene JSON completo o card- con longitud de ID
+        if (keyBuffer.startsWith("{") && keyBuffer.endsWith("}") && keyBuffer.length > 15) {
+          processScannedText(keyBuffer.trim());
+          keyBuffer = "";
+        } else if (keyBuffer.startsWith("card-") && keyBuffer.length >= 24) {
+          processScannedText(keyBuffer.trim());
+          keyBuffer = "";
+        }
       }
     });
 
     function handleSearchInput(val) {
-      if ((val.startsWith("{") && val.endsWith("}")) || (val.startsWith("{") && val.includes('"id"')) || val.startsWith("card-")) {
+      if ((val.startsWith("{") && val.endsWith("}")) || (val.startsWith("{") && val.includes('"id"')) || (val.startsWith("card-") && val.length >= 20) || val.includes("1788348700801")) {
         processScannedText(val);
       } else {
         renderClientsList();
