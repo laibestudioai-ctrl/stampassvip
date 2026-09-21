@@ -158,20 +158,31 @@ export default function NegocioTPVPage() {
     let lastKeyTime = Date.now();
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing inside a normal text input or textarea
       const target = e.target as HTMLElement;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
-        // Allow Enter inside search to trigger resolution
-        if (e.key === "Enter" && target.id === "global-search-input") {
+      const isInput = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
+
+      // If user/scanner pressed Enter inside an input field
+      if (e.key === "Enter" && isInput) {
+        const val = (target as HTMLInputElement).value?.trim();
+        if (val && (val.includes("card-") || val.startsWith("{") || val.includes("http") || val.length >= 4)) {
+          e.preventDefault();
+          processScannedBarcode(val);
+          (target as HTMLInputElement).value = "";
+          buffer = "";
           return;
         }
+      }
+
+      // If inside regular text input and NOT rapid barcode entry, let user type normally
+      if (isInput && e.key !== "Enter") {
+        return;
       }
 
       const now = Date.now();
       const diff = now - lastKeyTime;
       lastKeyTime = now;
 
-      // Scanners type keystrokes extremely rapidly (< 65ms)
+      // Scanners type keystrokes extremely rapidly (< 90ms)
       if (diff > 120 && buffer.length > 0) {
         buffer = "";
       }
@@ -193,17 +204,31 @@ export default function NegocioTPVPage() {
 
   // Process scanned input from hardware barcode/QR wedge or search
   const processScannedBarcode = (code: string) => {
-    console.log("[Hardware Scanner Ingestion]:", code);
-    let resolved = db.getCardBySearch(code);
+    if (!code) return;
+    let cleanCode = code.trim();
+    console.log("[Hardware Scanner Ingestion]:", cleanCode);
 
-    // Fallback: If code is or contains Paula's ID
-    if (!resolved && (code.includes("1788348700801") || code.toLowerCase().includes("paula"))) {
-      resolved = db.getCards().find(c => c.id === "card-1788348700801-s4sm" || c.id.includes("1788348700801")) || null;
+    // If code is a URL (e.g. from mobile camera or QR link)
+    if (cleanCode.includes("id=")) {
+      const match = cleanCode.match(/[?&]id=([^&]+)/);
+      if (match && match[1]) {
+        cleanCode = decodeURIComponent(match[1]);
+      }
+    } else if (cleanCode.includes("/cliente/")) {
+      const parts = cleanCode.split("/cliente/");
+      if (parts[1]) cleanCode = parts[1].split("?")[0];
+    }
+
+    let resolved = db.getCardBySearch(cleanCode);
+
+    // Fallback: If code is or contains Paula's ID or name
+    if (!resolved && (cleanCode.includes("1788348700801") || cleanCode.toLowerCase().includes("paula") || cleanCode.includes("633557024"))) {
+      resolved = db.getCards().find(c => c.id === "card-1788348700801-s4sm" || c.id.includes("1788348700801") || c.cliente.telefono?.includes("633557024")) || null;
     }
 
     if (!resolved) {
       // Create new customer automatically from code
-      resolved = db.importCardFromQR({ id: code });
+      resolved = db.importCardFromQR({ id: cleanCode });
     }
 
     if (resolved) {
@@ -217,8 +242,8 @@ export default function NegocioTPVPage() {
 
       // Trigger small confetti
       confetti({
-        particleCount: 35,
-        spread: 50,
+        particleCount: 40,
+        spread: 60,
         origin: { y: 0.3 }
       });
     }
@@ -456,9 +481,13 @@ export default function NegocioTPVPage() {
     <div className="min-h-screen bg-[#0A0815] text-white flex flex-col font-sans select-none pb-24">
       {/* HEADER SUPERIOR TPV */}
       <header className="border-b border-white/10 bg-[#0F0C20]/90 backdrop-blur-md px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-lg">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-black font-black text-xl shadow-lg shadow-amber-500/20">
-            ☕
+        <div className="flex items-center space-x-3 sm:space-x-4">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 p-0.5 flex items-center justify-center shadow-xl shadow-amber-500/25 overflow-hidden flex-shrink-0">
+            <img 
+              src="/logo_iglesia.png" 
+              alt="Bar La Iglesia Cervecería Cafetería" 
+              className="w-full h-full object-cover rounded-[14px]"
+            />
           </div>
           <div>
             <div className="flex items-center space-x-2">
@@ -469,11 +498,11 @@ export default function NegocioTPVPage() {
               </span>
             </div>
             <p className="text-[11px] text-gray-400 flex items-center space-x-1.5 mt-0.5">
-              <span>Barra:</span>
+              <span>Terminal VIP · InnovaTPV</span>
+              <span>· Barra:</span>
               <span className="text-amber-300 font-bold bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
                 {activeWaiter}
               </span>
-              <span>· InnovaTPV</span>
             </p>
           </div>
         </div>
