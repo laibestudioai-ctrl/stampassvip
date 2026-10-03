@@ -60,7 +60,8 @@ export default function NegocioTPVPage() {
   const [isAddingWaiter, setIsAddingWaiter] = useState(false);
 
   // Settings
-  const [bizName, setBizName] = useState("Bar La Iglesia");
+  const [bizName, setBizName] = useState(business?.nombre || "Bar La Iglesia");
+  const [bizEmail, setBizEmail] = useState(business?.email || "laiglesiacafebar@gmail.com");
   const [rewardName, setRewardName] = useState("10º Café GRATIS");
   const [maxStamps, setMaxStamps] = useState(10);
   const [settingsSaved, setSettingsSaved] = useState(false);
@@ -358,6 +359,11 @@ export default function NegocioTPVPage() {
 
   // Save Settings
   const handleSaveSettings = () => {
+    const updatedBiz = { ...business, nombre: bizName, email: bizEmail };
+    setBusiness(updatedBiz);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("stampsync_business", JSON.stringify(updatedBiz));
+    }
     setSettingsSaved(true);
     setTimeout(() => setSettingsSaved(false), 3000);
   };
@@ -1239,6 +1245,16 @@ export default function NegocioTPVPage() {
                       type="text"
                       value={bizName}
                       onChange={(e) => setBizName(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 mb-1 font-bold">Email Oficial de Contacto</label>
+                    <input
+                      type="email"
+                      value={bizEmail}
+                      onChange={(e) => setBizEmail(e.target.value)}
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-amber-400"
                     />
                   </div>

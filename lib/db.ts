@@ -10,6 +10,7 @@ export interface Business {
   id: string;
   nombre: string;
   tipo: string;
+  email?: string;
   empleados: { id: string; nombre: string; pin: string }[];
 }
 
@@ -28,7 +29,7 @@ export interface Card {
     nombre: string;
     max_sellos: number;
     premio: string;
-    negocio?: { nombre: string };
+    negocio?: { nombre: string; email?: string };
     configuracion_visual?: any;
   };
 }
@@ -46,6 +47,7 @@ const DEFAULT_BUSINESS: Business = {
   id: "biz-la-iglesia",
   nombre: "Bar La Iglesia",
   tipo: "hosteleria",
+  email: "laiglesiacafebar@gmail.com",
   empleados: [
     { id: "emp-1", nombre: "Paula", pin: "1234" },
     { id: "emp-2", nombre: "Camarero 1", pin: "0000" }
