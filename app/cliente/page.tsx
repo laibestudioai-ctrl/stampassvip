@@ -6,6 +6,7 @@ import { ArrowLeft, Coffee, Sparkles, Check, Download, Share2, Info, Trophy, Che
 import { QRCodeSVG } from "qrcode.react";
 import confetti from "canvas-confetti";
 import { db, Card } from "@/lib/db";
+import { supabase, fetchCardById, supabaseCardToCard } from "@/lib/supabase";
 
 function ClienteContent() {
   const searchParams = useSearchParams();
@@ -14,15 +15,80 @@ function ClienteContent() {
 
   const [card, setCard] = useState<Card | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const prevSellosRef = React.useRef<number>(-1);
 
   useEffect(() => {
-    const c = db.getCardById(cardId) || db.getCards()[0];
-    if (c) {
-      setCard({ ...c });
-      if (esNuevo || c.sellos_acumulados === 0) {
+    // 1. Carga inmediata local (para evitar flash de carga)
+    const local = db.getCardById(cardId) || db.getCards()[0];
+    if (local) {
+      setCard({ ...local });
+      prevSellosRef.current = local.sellos_acumulados;
+      if (esNuevo || local.sellos_acumulados === 0) {
         confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
       }
     }
+
+    // 2. Carga directa desde Supabase en la nube
+    fetchCardById(cardId).then((cloudCard) => {
+      if (cloudCard) {
+        setCard({ ...cloudCard });
+        prevSellosRef.current = cloudCard.sellos_acumulados;
+        // Guardar en caché local
+        db.importCardFromQR({
+          id: cloudCard.id,
+          nombre: cloudCard.cliente.nombre,
+          email: cloudCard.cliente.email,
+          telefono: cloudCard.cliente.telefono,
+          sellos: cloudCard.sellos_acumulados
+        });
+      }
+    });
+
+    // 3. Suscripción en Tiempo Real (Supabase Realtime)
+    const channel = supabase
+      .channel(`card-realtime-${cardId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "cards",
+          filter: `id=eq.${cardId}`
+        },
+        (payload) => {
+          if (payload.new) {
+            const updated = supabaseCardToCard(payload.new);
+            setCard(updated);
+            if (prevSellosRef.current !== -1 && updated.sellos_acumulados > prevSellosRef.current) {
+              confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
+            }
+            prevSellosRef.current = updated.sellos_acumulados;
+          }
+        }
+      )
+      .subscribe();
+
+    // 4. Sondeo de respaldo cada 2.5s para garantizar actualización 100% infalible
+    const pollInterval = setInterval(async () => {
+      const refreshed = await fetchCardById(cardId);
+      if (refreshed) {
+        setCard((curr) => {
+          if (!curr || curr.sellos_acumulados !== refreshed.sellos_acumulados || curr.premio_pendiente !== refreshed.premio_pendiente) {
+            if (curr && refreshed.sellos_acumulados > curr.sellos_acumulados) {
+              confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
+            }
+            prevSellosRef.current = refreshed.sellos_acumulados;
+            return refreshed;
+          }
+          return curr;
+        });
+      }
+    }, 2500);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(pollInterval);
+    };
   }, [cardId, esNuevo]);
 
   const qrPayload = useMemo(() => {

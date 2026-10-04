@@ -187,7 +187,7 @@ export const db = {
 
   importCardFromQR(data: { id?: string; nombre?: string; email?: string; telefono?: string; sellos?: number }): Card {
     const cards = this.getCards();
-    const targetId = data.id || "card-" + Date.now().toString().slice(-6);
+    const targetId = data.id || ("card-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6));
 
     let existing = cards.find(c => 
       c.id === targetId || 

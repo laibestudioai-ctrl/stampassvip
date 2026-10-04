@@ -36,6 +36,13 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import confetti from "canvas-confetti";
 import { db, Card, AuditLog, Business } from "@/lib/db";
+import { 
+  fetchAllCards, 
+  searchCard, 
+  fetchCardById, 
+  upsertCard, 
+  updateCardStamps 
+} from "@/lib/supabase";
 
 export default function NegocioTPVPage() {
   // Navigation
@@ -133,7 +140,7 @@ export default function NegocioTPVPage() {
     } catch (e) {}
   };
 
-  // Refresh data from DB
+  // Refresh data from DB and Supabase
   const refreshData = () => {
     const all = db.getCards();
     setCards([...all]);
@@ -151,7 +158,39 @@ export default function NegocioTPVPage() {
 
   useEffect(() => {
     refreshData();
-  }, []);
+
+    // Sincronizar clientes desde Supabase en la nube al cargar y cada 4 segundos
+    const syncFromCloud = async () => {
+      try {
+        const cloudCards = await fetchAllCards();
+        if (cloudCards && cloudCards.length > 0) {
+          cloudCards.forEach(cc => {
+            db.importCardFromQR({
+              id: cc.id,
+              nombre: cc.cliente.nombre,
+              email: cc.cliente.email,
+              telefono: cc.cliente.telefono,
+              sellos: cc.sellos_acumulados
+            });
+          });
+          const merged = db.getCards();
+          setCards([...merged]);
+          if (selectedCard) {
+            const currentSelected = merged.find(c => c.id === selectedCard.id);
+            if (currentSelected && currentSelected.sellos_acumulados !== selectedCard.sellos_acumulados) {
+              setSelectedCard(currentSelected);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error sincronizando tarjetas de Supabase:", e);
+      }
+    };
+
+    syncFromCloud();
+    const timer = setInterval(syncFromCloud, 4000);
+    return () => clearInterval(timer);
+  }, [selectedCard]);
 
   // Global Hardware USB Scanner Listener (Zero-Click)
   useEffect(() => {
@@ -204,7 +243,7 @@ export default function NegocioTPVPage() {
   }, [cards]);
 
   // Process scanned input from hardware barcode/QR wedge or search
-  const processScannedBarcode = (code: string) => {
+  const processScannedBarcode = async (code: string) => {
     if (!code) return;
     let cleanCode = code.trim();
     console.log("[Hardware Scanner Ingestion]:", cleanCode);
@@ -227,9 +266,37 @@ export default function NegocioTPVPage() {
       resolved = db.getCards().find(c => c.id === "card-1788348700801-s4sm" || c.id.includes("1788348700801") || c.cliente.telefono?.includes("633557024")) || null;
     }
 
+    // Si no está en caché local, consultar Supabase en la nube
     if (!resolved) {
-      // Create new customer automatically from code
+      try {
+        const cloudCard = (await searchCard(cleanCode)) || (await fetchCardById(cleanCode));
+        if (cloudCard) {
+          resolved = cloudCard;
+          db.importCardFromQR({
+            id: cloudCard.id,
+            nombre: cloudCard.cliente.nombre,
+            email: cloudCard.cliente.email,
+            telefono: cloudCard.cliente.telefono,
+            sellos: cloudCard.sellos_acumulados
+          });
+        }
+      } catch (err) {
+        console.error("Error buscando en Supabase:", err);
+      }
+    }
+
+    if (!resolved) {
+      // Create new customer automatically from code and sync to Supabase
       resolved = db.importCardFromQR({ id: cleanCode });
+      upsertCard({
+        id: resolved.id,
+        nombre: resolved.cliente.nombre,
+        telefono: resolved.cliente.telefono,
+        email: resolved.cliente.email,
+        sellos: resolved.sellos_acumulados,
+        sellos_historicos: resolved.sellos_totales_historicos,
+        premio_pendiente: resolved.premio_pendiente
+      });
     }
 
     if (resolved) {
@@ -259,6 +326,14 @@ export default function NegocioTPVPage() {
       setSelectedCard({ ...result.card });
       refreshData();
 
+      // Sincronizar en Supabase para que el móvil del cliente se actualice al instante
+      updateCardStamps(
+        result.card.id,
+        result.card.sellos_acumulados,
+        result.card.sellos_totales_historicos,
+        result.card.premio_pendiente
+      );
+
       if (result.unlockedReward) {
         playChime("reward");
         confetti({
@@ -287,6 +362,14 @@ export default function NegocioTPVPage() {
         origin: { y: 0.5 }
       });
       refreshData();
+      if (res.card) {
+        updateCardStamps(
+          res.card.id,
+          res.card.sellos_acumulados,
+          res.card.sellos_totales_historicos,
+          res.card.premio_pendiente
+        );
+      }
       setStampNotification(`🏆 ¡10º CAFÉ GRATIS CANJEADO! Registrado por ${activeWaiter}`);
       setTimeout(() => setStampNotification(null), 5000);
     }
@@ -305,6 +388,17 @@ export default function NegocioTPVPage() {
     playChime("scan");
     setStampNotification(`✅ Nuevo cliente ${newCard.cliente.nombre} dado de alta`);
     setTimeout(() => setStampNotification(null), 4000);
+
+    // Guardar en Supabase
+    upsertCard({
+      id: newCard.id,
+      nombre: newCard.cliente.nombre,
+      telefono: newCard.cliente.telefono,
+      email: newCard.cliente.email,
+      sellos: newCard.sellos_acumulados,
+      sellos_historicos: newCard.sellos_totales_historicos,
+      premio_pendiente: false
+    });
   };
 
   // Edit customer
@@ -327,6 +421,17 @@ export default function NegocioTPVPage() {
       setSelectedCard({ ...updated });
       refreshData();
       setIsEditing(false);
+
+      // Sincronizar cambios en Supabase
+      upsertCard({
+        id: updated.id,
+        nombre: updated.cliente.nombre,
+        telefono: updated.cliente.telefono,
+        email: updated.cliente.email,
+        sellos: updated.sellos_acumulados,
+        sellos_historicos: updated.sellos_totales_historicos,
+        premio_pendiente: updated.premio_pendiente
+      });
     }
   };
 

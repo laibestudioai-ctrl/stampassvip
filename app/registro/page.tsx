@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Sparkles, ShieldCheck, ArrowRight, Lock, Check } from "lucide-react";
 import { db } from "@/lib/db";
+import { upsertCard } from "@/lib/supabase";
 
 function RegistroContent() {
   const router = useRouter();
@@ -15,12 +16,29 @@ function RegistroContent() {
   const [rgpdAccepted, setRgpdAccepted] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim() || !contacto.trim() || !rgpdAccepted) return;
     setLoading(true);
 
-    const card = db.addCustomer(nombre, contacto);
+    const card = db.addCustomer(nombre.trim(), contacto.trim());
+
+    // Sincronizar de inmediato con Supabase en la nube para que cualquier TPV lo detecte al escanear
+    try {
+      const isEmail = contacto.includes("@");
+      await upsertCard({
+        id: card.id,
+        nombre: nombre.trim(),
+        telefono: isEmail ? null : contacto.trim(),
+        email: isEmail ? contacto.trim() : null,
+        sellos: card.sellos_acumulados || 0,
+        sellos_historicos: card.sellos_totales_historicos || 0,
+        premio_pendiente: false
+      });
+    } catch (err) {
+      console.error("Error sincronizando registro con Supabase:", err);
+    }
+
     router.push(`/cliente?id=${card.id}&nuevo=1`);
   };
 
