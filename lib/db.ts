@@ -150,28 +150,38 @@ export const db = {
     let q = query.trim();
     if (!q) return null;
 
-    // Check if query is a JSON string from QR
-    if (q.startsWith("{") || q.includes('"id"') || q.includes('"nombre"') || q.includes('"email"')) {
+    // Check if query is a JSON string or scanner fragment from QR
+    if (q.startsWith("{") || q.includes('"id"') || q.includes('"nombre"') || q.includes('ombre"') || q.includes('"email"') || q.includes('sellos') || q.includes('card-')) {
       try {
         let cleanJson = q;
-        // Fix dropped quotes from keyboard layouts
         cleanJson = cleanJson.replace(/([0-9]+)(sellos|id|nombre|email)":/g, '"$2":');
-        const parsed = JSON.parse(cleanJson);
-        return this.importCardFromQR(parsed);
-      } catch (e) {
-        // Fallback with regex
-        const idMatch = q.match(/"id"\s*:\s*"([^"]+)"/);
-        const nameMatch = q.match(/"nombre"\s*:\s*"([^"]+)"/);
-        const emailMatch = q.match(/"email"\s*:\s*"([^"]+)"/);
-        const sellosMatch = q.match(/"sellos"\s*:\s*([0-9]+)/);
-        if (idMatch || nameMatch || emailMatch) {
-          return this.importCardFromQR({
-            id: idMatch ? idMatch[1] : undefined,
-            nombre: nameMatch ? nameMatch[1] : undefined,
-            email: emailMatch ? emailMatch[1] : undefined,
-            sellos: sellosMatch ? parseInt(sellosMatch[1], 10) : 0
-          });
+        if (cleanJson.startsWith("{") && cleanJson.endsWith("}")) {
+          const parsed = JSON.parse(cleanJson);
+          return this.importCardFromQR(parsed);
         }
+      } catch (e) {}
+
+      // Fallback with regex to catch fragmented scans (e.g. ombre": "Juan pruobando"...)
+      const idMatch = q.match(/(?:\"?id\"?)\s*:\s*\"([^\"]+)\"/i) || q.match(/(card-[a-z0-9\-]+)/i);
+      const nameMatch = q.match(/(?:\"?(?:n?o?m?b?r?e?|name)\"?)\s*:\s*\"([^\"]+)\"/i);
+      const emailMatch = q.match(/(?:\"?(?:e?m?a?i?l?)\"?)\s*:\s*\"([^\"]+)\"/i);
+      const phoneMatch = q.match(/(?:\"?(?:t?e?l?e?f?o?n?o?|phone)\"?)\s*:\s*\"([^\"]+)\"/i);
+      const sellosMatch = q.match(/(?:\"?(?:s?e?l?l?o?s?|stamps)\"?)\s*:\s*([0-9]+)/i);
+
+      if (idMatch || nameMatch || emailMatch || phoneMatch) {
+        let emailVal = emailMatch ? emailMatch[1] : undefined;
+        let phoneVal = phoneMatch ? phoneMatch[1] : undefined;
+        if (emailVal && /^[0-9+ ]+$/.test(emailVal)) {
+          phoneVal = emailVal;
+          emailVal = undefined;
+        }
+        return this.importCardFromQR({
+          id: idMatch ? idMatch[1] : undefined,
+          nombre: nameMatch ? nameMatch[1] : undefined,
+          email: emailVal,
+          telefono: phoneVal,
+          sellos: sellosMatch ? parseInt(sellosMatch[1], 10) : 0
+        });
       }
     }
 

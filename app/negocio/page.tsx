@@ -844,10 +844,19 @@ export default function NegocioTPVPage() {
                       type="text"
                       placeholder="Nombre, teléfono o escanear QR..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val && (val.includes("card-") || val.startsWith("{") || val.includes('ombre"') || val.includes('"nombre"') || val.includes('"email"') || val.includes('sellos') || val.length >= 28)) {
+                          processScannedBarcode(val);
+                          setSearchQuery("");
+                          return;
+                        }
+                        setSearchQuery(val);
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && searchQuery.trim()) {
                           processScannedBarcode(searchQuery);
+                          setSearchQuery("");
                         }
                       }}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl pl-9 pr-8 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400"
