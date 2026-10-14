@@ -93,13 +93,7 @@ function ClienteContent() {
 
   const qrPayload = useMemo(() => {
     if (!card) return "card-vip-default";
-    return JSON.stringify({
-      id: card.id,
-      nombre: card.cliente.nombre,
-      email: card.cliente.email || "",
-      telefono: card.cliente.telefono || "",
-      sellos: card.sellos_acumulados
-    });
+    return card.id;
   }, [card]);
 
   if (!card) {

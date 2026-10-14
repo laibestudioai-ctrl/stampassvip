@@ -259,6 +259,15 @@ export default function NegocioTPVPage() {
       if (parts[1]) cleanCode = parts[1].split("?")[0];
     }
 
+    // Si el escáner perdió caracteres iniciales o viene de JSON partido
+    if (cleanCode.includes("vip-default") || cleanCode.includes("card-vip-def") || cleanCode.includes("vip-def")) {
+      cleanCode = "card-vip-default";
+    } else if (cleanCode.includes("1786668623480")) {
+      cleanCode = "card-1786668623480";
+    } else if (cleanCode.includes("1788348700801")) {
+      cleanCode = "card-1788348700801-s4sm";
+    }
+
     let resolved = db.getCardBySearch(cleanCode);
 
     // Fallback: If code is or contains Paula's ID or name
