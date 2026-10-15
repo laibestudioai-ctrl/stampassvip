@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, ArrowRight, Sparkles, Mail, Store, CreditCard, CheckCircle } from "lucide-react";
 import { db } from "@/lib/db";
+import { searchCard } from "@/lib/supabase";
 
 export default function HomePage() {
   const router = useRouter();
@@ -11,15 +12,36 @@ export default function HomePage() {
   const [inputVal, setInputVal] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleClientSubmit = (e: React.FormEvent) => {
+  const handleClientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputVal.trim()) return;
+    const query = inputVal.trim();
+    if (!query) return;
     setLoading(true);
-    const card = db.getCardBySearch(inputVal);
+
+    try {
+      // 1. Buscar primero en Supabase Cloud para sincronización entre dispositivos
+      const cloudCard = await searchCard(query);
+      if (cloudCard) {
+        db.importCardFromQR({
+          id: cloudCard.id,
+          nombre: cloudCard.cliente.nombre,
+          email: cloudCard.cliente.email,
+          telefono: cloudCard.cliente.telefono,
+          sellos: cloudCard.sellos_acumulados
+        });
+        router.push(`/cliente?id=${cloudCard.id}`);
+        return;
+      }
+    } catch (err) {
+      console.error("Error buscando tarjeta en Supabase:", err);
+    }
+
+    // 2. Si no está en Supabase, comprobar caché local
+    const card = db.getCardBySearch(query);
     if (card) {
       router.push(`/cliente?id=${card.id}`);
     } else {
-      router.push(`/registro?query=${encodeURIComponent(inputVal)}`);
+      router.push(`/registro?query=${encodeURIComponent(query)}`);
     }
   };
 
