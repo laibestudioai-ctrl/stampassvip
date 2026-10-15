@@ -150,7 +150,28 @@ export const db = {
     let q = query.trim();
     if (!q) return null;
 
-    // Check if query is a JSON string or scanner fragment from QR
+    // Format 1: Self-Contained QR Code (VIP*ID*NAME*CONTACT*STAMPS)
+    if (q.startsWith("VIP*") || q.includes("VIP*")) {
+      const payload = q.includes("VIP*") ? q.substring(q.indexOf("VIP*")) : q;
+      const parts = payload.split("*");
+      if (parts.length >= 2) {
+        const id = parts[1]?.trim();
+        const nombre = parts[2]?.trim();
+        const contact = parts[3]?.trim();
+        const sellos = parseInt(parts[4], 10) || 0;
+        const isEmail = contact?.includes("@");
+
+        return this.importCardFromQR({
+          id,
+          nombre,
+          email: isEmail ? contact : undefined,
+          telefono: isEmail ? undefined : contact,
+          sellos
+        });
+      }
+    }
+
+    // Format 2: JSON string or scanner fragment from QR
     if (q.startsWith("{") || q.includes('"id"') || q.includes('"nombre"') || q.includes('ombre"') || q.includes('"email"') || q.includes('sellos') || q.includes('card-')) {
       try {
         let cleanJson = q;

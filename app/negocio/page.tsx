@@ -204,7 +204,7 @@ export default function NegocioTPVPage() {
       // If user/scanner pressed Enter inside an input field
       if (e.key === "Enter" && isInput) {
         const val = (target as HTMLInputElement).value?.trim();
-        if (val && (val.includes("card-") || val.startsWith("{") || val.includes("http") || val.length >= 4)) {
+        if (val && (val.includes("VIP*") || val.includes("card-") || val.startsWith("{") || val.includes("http") || val.length >= 4)) {
           e.preventDefault();
           processScannedBarcode(val);
           (target as HTMLInputElement).value = "";
@@ -846,7 +846,7 @@ export default function NegocioTPVPage() {
                       value={searchQuery}
                       onChange={(e) => {
                         const val = e.target.value;
-                        if (val && (val.includes("card-") || val.startsWith("{") || val.includes('ombre"') || val.includes('"nombre"') || val.includes('"email"') || val.includes('sellos') || val.length >= 28)) {
+                        if (val && (val.includes("VIP*") || val.includes("card-") || val.startsWith("{") || val.includes('ombre"') || val.includes('"nombre"') || val.includes('"email"') || val.includes('sellos') || val.length >= 28)) {
                           processScannedBarcode(val);
                           setSearchQuery("");
                           return;

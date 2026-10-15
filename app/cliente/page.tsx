@@ -93,7 +93,9 @@ function ClienteContent() {
 
   const qrPayload = useMemo(() => {
     if (!card) return "card-vip-default";
-    return card.id;
+    const cleanName = (card.cliente?.nombre || "Cliente VIP").replace(/[*|]/g, " ").trim();
+    const cleanContact = (card.cliente?.telefono || card.cliente?.email || "").replace(/[*|]/g, " ").trim();
+    return `VIP*${card.id}*${cleanName}*${cleanContact}*${card.sellos_acumulados || 0}`;
   }, [card]);
 
   if (!card) {
