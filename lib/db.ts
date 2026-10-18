@@ -233,6 +233,14 @@ export const db = {
       if (data.email && !existing.cliente.email) {
         existing.cliente.email = data.email;
       }
+      if (data.telefono && !existing.cliente.telefono) {
+        existing.cliente.telefono = data.telefono;
+      }
+      if (data.sellos !== undefined) {
+        existing.sellos_acumulados = data.sellos;
+        existing.sellos_totales_historicos = Math.max(existing.sellos_totales_historicos || 0, data.sellos);
+        existing.premio_pendiente = data.sellos >= 10;
+      }
       this.saveCards(cards);
       return existing;
     }
@@ -318,7 +326,7 @@ export const db = {
     return { success: true, card, unlockedReward: reached10 };
   },
 
-  redeemReward(cardId: string, empleado: string = "Paula"): { success: boolean; message: string } {
+  redeemReward(cardId: string, empleado: string = "Paula"): { success: boolean; card?: Card; message: string } {
     const cards = this.getCards();
     const card = cards.find(c => c.id === cardId);
     if (!card) return { success: false, message: "Tarjeta no encontrada" };
@@ -328,7 +336,7 @@ export const db = {
     this.saveCards(cards);
     this.addAuditLog(card.cliente.nombre, "Canje de Premio VIP (10º Café)", 0, empleado);
 
-    return { success: true, message: "¡Premio canjeado con éxito! Que lo disfrute." };
+    return { success: true, card, message: "¡Premio canjeado con éxito! Que lo disfrute." };
   },
 
   getAuditLogs(): AuditLog[] {

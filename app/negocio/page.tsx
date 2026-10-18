@@ -336,12 +336,15 @@ export default function NegocioTPVPage() {
       refreshData();
 
       // Sincronizar en Supabase para que el móvil del cliente se actualice al instante
-      updateCardStamps(
-        result.card.id,
-        result.card.sellos_acumulados,
-        result.card.sellos_totales_historicos,
-        result.card.premio_pendiente
-      );
+      upsertCard({
+        id: result.card.id,
+        nombre: result.card.cliente.nombre,
+        telefono: result.card.cliente.telefono,
+        email: result.card.cliente.email,
+        sellos: result.card.sellos_acumulados,
+        sellos_historicos: result.card.sellos_totales_historicos,
+        premio_pendiente: result.card.premio_pendiente
+      });
 
       if (result.unlockedReward) {
         playChime("reward");
@@ -372,12 +375,15 @@ export default function NegocioTPVPage() {
       });
       refreshData();
       if (res.card) {
-        updateCardStamps(
-          res.card.id,
-          res.card.sellos_acumulados,
-          res.card.sellos_totales_historicos,
-          res.card.premio_pendiente
-        );
+        upsertCard({
+          id: res.card.id,
+          nombre: res.card.cliente.nombre,
+          telefono: res.card.cliente.telefono,
+          email: res.card.cliente.email,
+          sellos: res.card.sellos_acumulados,
+          sellos_historicos: res.card.sellos_totales_historicos,
+          premio_pendiente: res.card.premio_pendiente
+        });
       }
       setStampNotification(`🏆 ¡10º CAFÉ GRATIS CANJEADO! Registrado por ${activeWaiter}`);
       setTimeout(() => setStampNotification(null), 5000);
